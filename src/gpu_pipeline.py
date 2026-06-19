@@ -39,9 +39,9 @@ torch.manual_seed(0); np.random.seed(0)
 
 
 class ScalableEdgeGen(nn.Module):
-    def __init__(self, N):
+    def __init__(self, N, n_types):
         super().__init__()
-        self.mlp = nn.Sequential(nn.Linear(2 * N_TYPES + 1, 64), nn.ReLU(),
+        self.mlp = nn.Sequential(nn.Linear(2 * n_types + 1, 64), nn.ReLU(),
                                  nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 1))
         self.u = nn.Embedding(N, EMB); self.v = nn.Embedding(N, EMB); self.s = nn.Embedding(N, EMB)
         for e in (self.u, self.v, self.s):
@@ -80,10 +80,11 @@ def main():
     path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_IN
     d = np.load(path, allow_pickle=True)
     N = int(d["num_nodes"]); edges = d["edges"]; ntype = d["node_type"]; pos = d["pos"]
-    print(f"입력: {os.path.basename(path)} | 노드 {N} | 양성엣지 {len(edges):,} | 장치 {DEV}")
+    n_types = int(ntype.max()) + 1
+    print(f"입력: {os.path.basename(path)} | 노드 {N} | 양성엣지 {len(edges):,} | 타입 {n_types}종 | 장치 {DEV}")
 
     # GPU 텐서
-    type_oh = torch.eye(N_TYPES, device=DEV)[torch.tensor(ntype, device=DEV)]
+    type_oh = torch.eye(n_types, device=DEV)[torch.tensor(ntype, device=DEV)]
     pos_t = torch.tensor(pos, dtype=torch.float32, device=DEV)
     E = torch.tensor(edges, dtype=torch.long, device=DEV)
     # train/test 분할 (양성엣지 90/10)
@@ -94,7 +95,7 @@ def main():
     pos_set = set(map(tuple, edges.tolist()))
     dscale = (pos_t[E[:, 0]] - pos_t[E[:, 1]]).norm(dim=-1).mean().clamp(min=1.0)
 
-    model = ScalableEdgeGen(N).to(DEV)
+    model = ScalableEdgeGen(N, n_types).to(DEV)
     opt = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
     lossf = nn.BCEWithLogitsLoss()
     steps = max(1, len(Etr) // BATCH)
