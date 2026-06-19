@@ -21,6 +21,12 @@ DUR = float(sys.argv[2]) if len(sys.argv) > 2 else 200.0
 PSET = sys.argv[3] if len(sys.argv) > 3 else "C"
 os.environ["C302_CONN_MODE"] = MODE
 
+# param C 기본=자극0pA(죽음). 살리되 subthreshold(graded) 영역으로 약하게
+# → 뉴런별 탈분극 정도가 connectome 라우팅에 따라 달라짐 (C.elegans는 대부분 비-스파이킹)
+STIM_PA = float(os.environ.get("C302_STIM", "4"))      # 감각 자극전류 pA
+GEXC_NS = float(os.environ.get("C302_GEXC", "0.3"))    # 흥분성 시냅스 전도도 nS
+GINH_NS = float(os.environ.get("C302_GINH", "0.3"))    # 억제성 시냅스 전도도 nS
+
 import importlib
 import c302
 from pyneuroml import pynml
@@ -65,6 +71,11 @@ def main():
 
     print(f"[B2] MODE={MODE} param={PSET} dur={DUR}ms 뉴런={len(names)} 감각자극={len(sensory)}")
     t0 = time.time()
+    overrides = {
+        "unphysiological_offset_current": f"{STIM_PA}pA",     # 0pA→자극 살림
+        "neuron_to_neuron_chem_exc_syn_gbase": f"{GEXC_NS}nS",
+        "neuron_to_neuron_chem_inh_syn_gbase": f"{GINH_NS}nS",
+    }
     c302.generate(
         ref, params,
         data_reader="c302_gen_reader",
@@ -74,6 +85,7 @@ def main():
         muscles_to_include=[],
         duration=DUR, dt=0.05,
         target_directory=target,
+        param_overrides=overrides,
         verbose=False,
     )
     print(f"  생성 완료 ({time.time()-t0:.1f}s). LEMS 시뮬 시작...")
@@ -84,12 +96,12 @@ def main():
         lems, exec_in_dir=target, nogui=True, load_saved_data=True, plot=False, verbose=False)
     print(f"  시뮬 완료 ({time.time()-t1:.1f}s)")
 
-    # 뉴런별 활성 = 전압 표준편차 (반응 정도)
+    # 뉴런별 활성 = 평균 탈분극 (graded 영역: connectome 라우팅 반영)
     act = {}
     miss = 0
     for n in names:
         tr = find_trace(data, n)
-        act[n] = float(np.std(tr)) if tr is not None and len(tr) > 1 else np.nan
+        act[n] = float(np.mean(tr)) if tr is not None and len(tr) > 1 else np.nan
         if tr is None:
             miss += 1
     print(f"  트레이스 매칭: {len(names)-miss}/{len(names)} (못찾음 {miss})")
