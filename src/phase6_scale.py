@@ -111,10 +111,50 @@ def scale_generate(model, N, dscale, density_vol, type_dist, target_deg=15, C=12
     return dt, mem, n_edges
 
 
+@torch.no_grad()
+def scale_generate_local(model, N, dscale, density_vol, type_dist, target_deg=15, C=64, per_cell=200, chunk=50000):
+    """공간-국소 후보: 같은 3D 셀 안에서 후보 샘플 → 엣지가 실제 형성 → N에 선형."""
+    torch.cuda.reset_peak_memory_stats() if DEV == "cuda" else None
+    t0 = time.time()
+    side = (N / density_vol) ** (1 / 3)
+    pos = torch.rand(N, 3, device=DEV) * side
+    types = torch.tensor(np.random.choice(N_TYPES, N, p=type_dist), device=DEV).to(torch.int8)
+    EYE = torch.eye(N_TYPES, device=DEV)
+    cell_size = (per_cell / density_vol) ** (1 / 3)           # 셀당 ~per_cell 뉴런
+    G = int(side / cell_size) + 2
+    cell = (pos / cell_size).floor().long().clamp(0, G - 1)
+    cid = cell[:, 0] * G * G + cell[:, 1] * G + cell[:, 2]
+    order = torch.argsort(cid); sc = cid[order]
+    uniq, inv, cnt = torch.unique(sc, return_inverse=True, return_counts=True)
+    starts = torch.cumsum(cnt, 0) - cnt                        # 정렬배열 내 각 셀 시작
+    n_edges = 0
+    for p0 in range(0, N, chunk):
+        ps = torch.arange(p0, min(p0 + chunk, N), device=DEV)  # 정렬위치
+        st = starts[inv[ps]]; ln = cnt[inv[ps]].clamp(min=1)
+        off = (torch.rand(len(ps), C, device=DEV) * ln.unsqueeze(1)).long()
+        cand = order[(st.unsqueeze(1) + off).reshape(-1)]      # 같은셀 후보
+        si = order[ps].repeat_interleave(C)
+        dist = ((pos[si] - pos[cand]).norm(dim=-1, keepdim=True)) / dscale
+        logit = model(EYE[types[si].long()], EYE[types[cand].long()], dist).view(len(ps), C)
+        p = torch.sigmoid(logit)
+        p = p * (target_deg / C) / p.mean().clamp(min=1e-6)
+        n_edges += (torch.rand_like(p) < p).sum().item()
+    dt = time.time() - t0
+    mem = (torch.cuda.max_memory_allocated() / 1e9) if DEV == "cuda" else 0.0
+    return dt, mem, n_edges
+
+
 def main():
     box = {}
     model, dscale, dvol, type_dist = train_rule(box)
     torch.save(model.state_dict(), os.path.join(DMODEL, "rule_model.pt"))
+
+    print(f"\n=== [2번] 공간-국소 샘플러: 엣지 선형성 확인 ===")
+    print(f"{'뉴런수':>12}{'생성엣지':>14}{'평균차수':>10}{'시간(s)':>9}{'GPU(GB)':>9}")
+    for N in [1_000_000, 20_000_000, 70_000_000]:
+        dt, mem, ne = scale_generate_local(model, N, dscale, dvol, type_dist)
+        print(f"{N:>12,}{ne:>14,}{ne/N:>10.1f}{dt:>9.1f}{mem:>9.2f}")
+    print("→ 평균차수가 N과 무관하게 일정하면 엣지가 N에 선형(정체 해결)\n")
 
     print(f"\n=== 대규모 생성 스트레스 테스트 (RTX 3080, 희소생성) ===")
     print(f"{'뉴런수':>12}{'시간(s)':>10}{'GPU(GB)':>10}{'생성엣지':>14}{'엣지/초':>14}")
