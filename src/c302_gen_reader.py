@@ -13,12 +13,13 @@ c302 인터페이스:
 """
 import os
 import numpy as np
-from c302.ConnectomeReader import ConnectionInfo
+from c302.ConnectomeReader import ConnectionInfo, PREFERRED_NEURON_NAMES
+
+KNOWN = set(PREFERRED_NEURON_NAMES)   # c302가 아는 표준 뉴런만 (근육/시스세포 제외)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROC = os.path.join(HERE, "..", "data", "processed", "celegans_dev.npz")
 GEN = r"D:\NOMS-LAB-D\connectome-gen\outputs\phase1_v2_generated_stage8.npz"
-MODE = os.environ.get("C302_CONN_MODE", "gen")
 
 
 def _synclass(pre):
@@ -27,10 +28,19 @@ def _synclass(pre):
 
 
 def _load():
+    mode = os.environ.get("C302_CONN_MODE", "gen")   # 호출시점에 읽음
     proc = np.load(PROC, allow_pickle=True)
     names_all = [str(x) for x in proc["node_names"]]
     g = np.load(GEN, allow_pickle=True)
-    A = (g["A_real"] if MODE == "real" else g["A_gen"]).astype(np.float32)
+    real = g["A_real"].astype(np.float32)
+    if mode == "real":
+        A = real
+    elif mode == "rand":                              # 같은 밀도 무작위 baseline
+        A = np.zeros(real.size, np.float32)
+        A[np.random.default_rng(0).choice(real.size, int(real.sum()), replace=False)] = 1
+        A = A.reshape(real.shape); np.fill_diagonal(A, 0)
+    else:
+        A = g["A_gen"].astype(np.float32)
     idx = g["node_idx"]
     names = [names_all[i] for i in idx]
     return names, A
@@ -42,11 +52,11 @@ def read_data(include_nonconnected_cells=False):
     conns = []
     for i in range(k):
         for j in range(k):
-            if A[i, j] > 0:
+            if A[i, j] > 0 and names[i] in KNOWN and names[j] in KNOWN:
                 conns.append(ConnectionInfo(names[i], names[j], int(A[i, j]),
                                             "Send", _synclass(names[i])))
     cells = sorted(set([c.pre_cell for c in conns] + [c.post_cell for c in conns]))
-    print(f"[c302_gen_reader] MODE={MODE}  cells={len(cells)}  conns={len(conns)}")
+    print(f"[c302_gen_reader] MODE={os.environ.get('C302_CONN_MODE','gen')}  cells={len(cells)}  conns={len(conns)}")
     return cells, conns
 
 

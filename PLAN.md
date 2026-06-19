@@ -78,3 +78,8 @@
 - 2026-06-19: **대규모 GPU 파이프라인 완료** (`src/gpu_pipeline.py` + `make_pipeline_input.py`).
   negative sampling(양성+무작위음성), N^2 미생성 → 초파리 14만뉴런 대비. 벌레 검증 AUC 0.84 / 0.4초.
   초파리: 같은 포맷 npz 만들어 경로만 넘기면 동작.
+- 2026-06-19: **B2 c302 실행완료(결과 inconclusive)** — `src/phase2b2_c302.py`+`phase2b2_compare.py`.
+  OpenJDK17 설치, c302 NeuroML 생성 + jNeuroML 시뮬 전과정 작동(180뉴런, 200ms ~18초/모드).
+  BUT 기본 param(C)+감각자극으로 **전 뉴런 활성 동일(0.00248)** = 자극 전파 안 됨 → 판별 불가.
+  c302는 입력전류·시냅스게인 손튜닝 필요(생물물리 sim의 난점). **작동검증 신뢰결과는 A·B1.**
+  종합 상관(생성/무작위 vs 실제): A 0.38/-0.17, B1 0.51/-0.16, B2 degenerate(튜닝 필요).
