@@ -76,10 +76,14 @@ def main():
     pos[:, 0] = depth * side
     pos[:, 1:] = torch.rand(N, 2, device=DEV) * side
     pos = pos.half()
-    bins = (depth * 10).clamp(0, 9).long()                     # 깊이→층
-    r = torch.rand(N, device=DEV)
-    types = (r.unsqueeze(1) > cum[bins]).sum(1).clamp(0, T - 1).to(torch.int8)
-    del depth, r, bins
+    # 깊이→층 타입: (N,T) 한번에 만들면 OOM(3억×12=27GB) → 청크로
+    types = torch.empty(N, dtype=torch.int8, device=DEV)
+    for i in range(0, N, 10_000_000):
+        j = min(i + 10_000_000, N)
+        bi = (depth[i:j] * 10).clamp(0, 9).long()
+        ri = torch.rand(j - i, device=DEV)
+        types[i:j] = (ri.unsqueeze(1) > cum[bi]).sum(1).clamp(0, T - 1).to(torch.int8)
+    del depth
     EYE = torch.eye(T, device=DEV)
 
     cs = ((300 / dvol) ** (1 / 3)) / dscale; G = int(side / cs) + 2
@@ -107,6 +111,8 @@ def main():
         rows, cols = fire.nonzero(as_tuple=True)
         src = order[ps][rows].cpu().numpy().astype(np.uint32)
         dst = cand.view(len(ps), C)[rows, cols].cpu().numpy().astype(np.uint32)
+        keep = src != dst                                          # 자기연결 제거
+        src, dst = src[keep], dst[keep]
         w = (1 + np.random.geometric(0.3, len(src)).clip(1, 60)).astype(np.uint16)
         arr = np.empty(len(src), EDGE_DT); arr["src"] = src; arr["dst"] = dst; arr["w"] = w
         f.write(arr.tobytes()); written += arr.nbytes; n_edges += len(src)
