@@ -148,8 +148,10 @@ others may remain. This disclosure is provided in the interest of research integ
 
 ## 7. Data & code availability
 
-All code: GitHub (this repository). Generated artifacts and large connectomes: archived.
-Source connectomes: Witvliet 2021, Winding 2023, MICrONS minnie65_public.
+Code: https://github.com/9138noms/Brain-Map-Generation-AI-NOBCA
+Archived release (DOI): **10.5281/zenodo.20780543** (https://doi.org/10.5281/zenodo.20780543).
+Generated artifacts and large connectomes archived separately. Source connectomes:
+Witvliet 2021, Winding 2023, MICrONS minnie65_public.
 
 ## Author
 

@@ -1,6 +1,8 @@
 # Brain-Map Generation AI Experiment (NOBCA)
 ### NOBCA = NOms Brain Connecting AI · Functional Generative Models of the Connectome
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20780543.svg)](https://doi.org/10.5281/zenodo.20780543)
+
 Learning generative models of brain wiring (connectomes) directly from reconstructed
 connectomes, and evaluating the generated brains for **structure, function, novelty,
 cross-species transfer, and scale** — from a 300-neuron worm to a 300-million-neuron
@@ -67,7 +69,8 @@ the content. Results are **exploratory** and **not independently peer-reviewed**
 
 ## Citation
 
-If this is useful, please cite the archived release (Zenodo DOI — to be added).
+> 9138noms (2026). *Brain-Map Generation AI Experiment (NOBCA): Functional Generative
+> Models of the Connectome.* Zenodo. https://doi.org/10.5281/zenodo.20780543
 
 ## License
 
