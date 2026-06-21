@@ -1,5 +1,6 @@
-# NOBCA — 뇌지도 생성 AI 실험
-### NOms Brain Connecting AI · Functional Generative Models of the Connectome
+# 뇌지도 생성 AI 실험 (NOBCA)
+### Brain-Map Generation AI Experiment · NOBCA = NOms Brain Connecting AI
+*Functional Generative Models of the Connectome*
 
 Learning generative models of brain wiring (connectomes) directly from reconstructed
 connectomes, and evaluating the generated brains for **structure, function, novelty,
