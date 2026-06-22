@@ -125,16 +125,35 @@ exists, so >cortex-sample scales are generation without validation). Dynamics mo
 simplified (no full receptor pharmacology, neuromodulation). Degree/reciprocity correction
 uses real summary statistics as parameters (standard for degree-corrected models).
 
-## 6b. Reproducibility & verification
+## 6b. Reproducibility & adversarial verification
 
-Core claims were re-run with controls (`src/verify.py`): structural type-flow fidelity
-0.990±0.002 vs random 0.63 (5 seeds); novelty Jaccard 0.40 (random 0.02, natural
-inter-individual variation 0.51); cross-species transfer AUC cross 0.772 = within 0.772,
-with an **edge-shuffle control collapsing to 0.50** (chance) — ruling out an artifact.
-**Confidence grading.** *Well-supported:* structural fidelity, novelty, cross-species
-universality, function (c302 0.78). *Preliminary / weak:* innate-reflex function
-(small effect), large-scale hub structure (rule-based generation lacks hubs without
-degree-correction), learning-task discrimination (task too easy to separate from random).
+Core claims were re-run with controls (`src/verify.py`) and **red-teamed against their most
+plausible confounds** (`src/adversarial_verify.py`):
+
+- **Function comes from wiring, not cell identity (key test).** A skeptic could argue the
+  simulators (c302/LIF) assign dynamics by cell *type*, so any connectome over the same
+  neurons would correlate with the real one — making "generated brains work" an artifact of
+  the shared neuron set. Test: scramble the wiring while keeping the same neurons. Motor-
+  activity correlation collapses from **0.50 (generated)** to **−0.09 (random wiring)** and
+  **−0.11 (degree-preserving shuffle)**. The generated brain's function genuinely derives
+  from its generated wiring. *(strongest result; survives the hardest attack)*
+- **Novelty is systematic, not sampling noise.** Generated brains overlap the real brain
+  (Jaccard 0.40) *less* than they overlap each other (0.47); natural variation between two
+  real adults is 0.51. The gen–real difference exceeds sampling variance.
+- **Cross-species transfer is real but a modest rule.** Worm-trained distance rule predicts
+  mouse cortex (AUC 0.772) as well as a mouse-trained rule, and an edge-shuffle control
+  collapses to 0.50 (no artifact). Distance is a modest predictor (AUC ≈0.77, not ≈0.95):
+  the shared principle is one component of wiring, not a complete model.
+- **Type-flow fidelity is an easy target.** A degree-preserving shuffle of the real
+  connectome already reaches type-flow correlation 0.75; the generator's 0.99 is only a
+  modest edge over this null. Type-flow is largely fixed by per-type degree, so we report it
+  as "captures cell-type architecture," not as a strong result.
+
+**Confidence grading.** *Strong (survives adversarial test):* **function derives from the
+generated wiring.** *Solid:* novelty; cross-species transfer (shuffle-controlled, modest
+rule). *Easy / modest:* type-flow fidelity. *Preliminary / weak:* innate-reflex function
+(small effect), large-scale hubs (absent without degree-correction), learning-task
+discrimination (task too easy to separate from random).
 
 ## 6c. AI-assistance disclosure
 
